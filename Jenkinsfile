@@ -9,7 +9,7 @@ pipeline {
 	stages {
 		stage('Build image') {
 			agent any
-			step {
+			steps {
 				script {
 					sh 'docker build -t paulin84/$IMAGE_NAME:$IMAGE_TAG .'
 				}
@@ -17,7 +17,7 @@ pipeline {
 		}
 		stage('Run container based on builded image') {
 			agent any
-			step {
+			steps {
 				script {
 					sh '''
 						docker run --name $IMAGE_NAME -d -p 80:5000 -e PORT=5000 paulin84/$IMAGE_NAME:$IMAGE_TAG
@@ -36,9 +36,25 @@ pipeline {
 				}
 			}
 		}
+
+		stage ('Login and Push Image on docker hub') {
+          	agent any
+	        environment {
+	           DOCKERHUB_PASSWORD  = credentials('dockerhub')
+	        }            
+		  steps {
+			 script {
+			   sh '''
+				   echo $DOCKERHUB_PASSWORD_PSW | docker login -u $ID_DOCKER --password-stdin
+				   docker push ${ID_DOCKER}/$IMAGE_NAME:$IMAGE_TAG
+			   '''
+			 }
+		  }
+	  }    
+		
 		stage('Clean Container') {
 			agent any
-			step {
+			steps {
 				script {
 					sh '''
 						docker stop $IMAGE_NAME
