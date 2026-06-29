@@ -7,83 +7,81 @@ pipeline {
 	}
 	agent none
 	stages {
-		stages {
-			stage('Build image') {
-				agent any
-				step {
-					script {
-						sh 'docker build -t paulin84/$IMAGE_NAME:$IMAGE_TAG .'
-					}
+		stage('Build image') {
+			agent any
+			step {
+				script {
+					sh 'docker build -t paulin84/$IMAGE_NAME:$IMAGE_TAG .'
 				}
 			}
-			stage('Run container based on builded image') {
-				agent any
-				step {
-					script {
-						sh '''
-							docker run --name $IMAGE_NAME -d -p 80:5000 -e PORT=5000 paulin84/$IMAGE_NAME:$IMAGE_TAG
-							sleep 5
-						'''
-					}
+		}
+		stage('Run container based on builded image') {
+			agent any
+			step {
+				script {
+					sh '''
+						docker run --name $IMAGE_NAME -d -p 80:5000 -e PORT=5000 paulin84/$IMAGE_NAME:$IMAGE_TAG
+						sleep 5
+					'''
 				}
 			}
-			stage('Test image') {
-				agent any
-				step {
-					script {
-						sh '''
-							curl http://192.168.56.100 | grep -q "Hello world!"
-						'''
-					}
+		}
+		stage('Test image') {
+			agent any
+			step {
+				script {
+					sh '''
+						curl http://192.168.56.100 | grep -q "Hello world!"
+					'''
 				}
 			}
-			stage('Clean Container') {
-				agent any
-				step {
-					script {
-						sh '''
-							docker stop $IMAGE_NAME
-							docker rm $IMAGE_NAME
-						'''
-					}
+		}
+		stage('Clean Container') {
+			agent any
+			step {
+				script {
+					sh '''
+						docker stop $IMAGE_NAME
+						docker rm $IMAGE_NAME
+					'''
 				}
 			}
-			stage('Push image in staging and deploy it') {
-				when {
+		}
+		stage('Push image in staging and deploy it') {
+			when {
+				expression {GIT_BRANCH == 'origin/master'}
+			}
+			agent any
+			environment {
+				HEROKU_API_KEY = credentials('heroku_api_key')
+			}
+			steps {
+				script {
+					sh '''
+						heroku container:login
+						heroku create $STAGING || echo "project already exist"
+						heroku container:push -a $STAGING web
+						heroku container:release -a $STAGING web
+					'''
+				}
+			}
+		}
+		stage('Push image in production and deploy it') {
+			when {
 					expression {GIT_BRANCH == 'origin/master'}
 				}
-				agent any
-				environment {
-					HEROKU_API_KEY = credentials('heroku_api_key')
-				}
-				steps {
-					script {
-						sh '''
-							heroku container:login
-							heroku create $STAGING || echo "project already exist"
-							heroku container:push -a $STAGING web
-							heroku container:release -a $STAGING web
-						'''
-					}
-				}
+			agent any
+			environment {
+				  HEROKU_API_KEY = credentials('heroku_api_key')
 			}
-			stage('Push image in production and deploy it') {
-				when {
-					    expression {GIT_BRANCH == 'origin/master'}
-				    }
-				agent any
-				environment {
-					  HEROKU_API_KEY = credentials('heroku_api_key')
-				}
-				steps {
-					script {
-						sh '''
-							heroku container:login
-							heroku create $PRODUCTION || echo "project already exist"
-							heroku container:push -a $PRODUCTION web
-							heroku container:release -a $PRODUCTION web
-						'''
-					}
+			steps {
+				script {
+					sh '''
+						heroku container:login
+						heroku create $PRODUCTION || echo "project already exist"
+						heroku container:push -a $PRODUCTION web
+						heroku container:release -a $PRODUCTION web
+					'''
 				}
 			}
 		}
