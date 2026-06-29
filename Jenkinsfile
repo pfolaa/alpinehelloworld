@@ -63,6 +63,7 @@ pipeline {
 						heroku container:login
 						heroku create $STAGING || echo "project already exist"
 						heroku stack:set container -a $STAGING
+						export DOCKER_BUILDKIT=1
 						heroku container:push -a $STAGING web
 						heroku container:release -a $STAGING web
 					'''
