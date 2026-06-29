@@ -28,7 +28,7 @@ pipeline {
 		}
 		stage('Test image') {
 			agent any
-			step {
+			steps {
 				script {
 					sh '''
 						curl http://192.168.56.100 | grep -q "Hello world!"
